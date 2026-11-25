@@ -85,6 +85,7 @@ private fun GeneratorApp() {
     var customLabel by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var adminUuid by remember { mutableStateOf("") }
+    var freshCodes by remember { mutableStateOf(listOf<String>()) }
 
     fun runTask(task: suspend () -> Unit) {
         scope.launch {
@@ -199,7 +200,8 @@ private fun GeneratorApp() {
                                         val n=quantity.toIntOrNull() ?: throw IllegalStateException("Quantity must be a number")
                                         val len=codeLength.toIntOrNull() ?: throw IllegalStateException("Code length must be a number")
                                         val result=admin(token,JSONObject().put("action","generate").put("groupId",selectedGroup).put("count",n).put("codeLength",len).put("prefix",prefix.trim()).put("batchName",batchName.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim()))
-                                        message="Created batch ${result.optJSONObject("batch")?.optString("name") ?: batchName}. ${result.optJSONArray("codes")?.length() ?: 0} codes generated."
+                                        freshCodes = (0 until (result.optJSONArray("codes")?.length() ?: 0)).map { result.optJSONArray("codes")!!.optString(it) }
+                                        message="Created batch ${result.optJSONObject("batch")?.optString("name") ?: batchName}. ${freshCodes.size} codes generated."
                                         page="Codes"
                                         codeList=admin(token,JSONObject().put("action","list_codes").put("page",1).put("pageSize",50))
                                     }},modifier=Modifier.fillMaxWidth(),enabled=!busy && groups.length()>0){Text("GENERATE CODES")}
@@ -211,6 +213,11 @@ private fun GeneratorApp() {
                             val items = codeList.optJSONArray("items") ?: JSONArray()
                             LazyColumn(Modifier.weight(1f).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                                 item { Button(onClick={loadCodes()},modifier=Modifier.fillMaxWidth()){Text("REFRESH CODE LIST")} }
+                                if (freshCodes.isNotEmpty()) item { GlassCard {
+                                    Text("JUST GENERATED — SAVE THESE CODES", color=cyan, fontWeight=FontWeight.Bold)
+                                    Text("They are shown only now; the backend stores a hash, not the original code.", color=muted, fontSize=12.sp)
+                                    freshCodes.forEach { Text(it, fontSize=16.sp, fontWeight=FontWeight.Bold, letterSpacing=1.sp) }
+                                } }
                                 items((0 until items.length()).map { items.getJSONObject(it) }) { row ->
                                     GlassCard {
                                         Text(row.optString("code_label").ifBlank { "Invite code" },color=cyan,fontWeight=FontWeight.Bold)
