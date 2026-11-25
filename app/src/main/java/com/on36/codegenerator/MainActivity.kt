@@ -115,7 +115,7 @@ private fun GeneratorApp() {
     val accent = Color(0xFF48D9B5)
     val danger = Color(0xFFE47770)
     fun tr(en: String, ar: String) = if (arabic) ar else en
-    fun runTask(block: suspend () -> Unit) {
+    fun task(block: suspend () -> Unit) {
         scope.launch {
             busy = true
             message = ""
@@ -123,7 +123,6 @@ private fun GeneratorApp() {
             busy = false
         }
     }
-    fun task(block: suspend () -> Unit) = runTask(block)
     fun refreshOverview() = task {
         overview = admin(token, JSONObject().put("action", "overview"))
         groups = overview.optJSONArray("groups") ?: JSONArray()
