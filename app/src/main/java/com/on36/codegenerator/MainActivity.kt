@@ -123,6 +123,7 @@ private fun GeneratorApp() {
             busy = false
         }
     }
+    fun task(block: suspend () -> Unit) = runTask(block)
     fun refreshOverview() = task {
         overview = admin(token, JSONObject().put("action", "overview"))
         groups = overview.optJSONArray("groups") ?: JSONArray()
