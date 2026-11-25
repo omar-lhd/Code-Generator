@@ -91,7 +91,7 @@ private fun GeneratorApp() {
     var groups by remember { mutableStateOf(JSONArray()) }
     var selectedGroup by remember { mutableStateOf("") }
     var tier by remember { mutableStateOf("Premium") }
-    var generationMode by remember { mutableStateOf("Random") }
+    var mode by remember { mutableStateOf("Random") }
     var customCodes by remember { mutableStateOf("") }
     var batchName by remember { mutableStateOf("Premium batch") }
     var quantity by remember { mutableStateOf("10") }
@@ -103,18 +103,18 @@ private fun GeneratorApp() {
     var adminEmail by remember { mutableStateOf("") }
     var forever by remember { mutableStateOf(true) }
     var expiryDate by remember { mutableStateOf("") }
-    var freshCodes by remember { mutableStateOf(listOf<String>()) }
-    var searchQuery by remember { mutableStateOf("") }
+    var newCodes by remember { mutableStateOf(listOf<String>()) }
+    var search by remember { mutableStateOf("") }
     var statusFilter by remember { mutableStateOf("All") }
 
-    val background = if (light) Color(0xFFF3F6F8) else Color(0xFF0B1018)
+    val bg = if (light) Color(0xFFF3F6F8) else Color(0xFF0B1018)
     val panel = if (light) Color.White else Color(0xFF151E2B)
     val muted = if (light) Color(0xFF647488) else Color(0xFF93A5B8)
     val accent = Color(0xFF48D9B5)
     val danger = Color(0xFFE47770)
     fun tr(en: String, ar: String) = if (arabic) ar else en
 
-    fun runTask(block: suspend () -> Unit) {
+    fun task(block: suspend () -> Unit) {
         scope.launch {
             busy = true
             message = ""
@@ -122,25 +122,23 @@ private fun GeneratorApp() {
             busy = false
         }
     }
-    fun loadOverview() = runTask {
+    fun refreshOverview() = task {
         overview = admin(token, JSONObject().put("action", "overview"))
         groups = overview.optJSONArray("groups") ?: JSONArray()
         if (selectedGroup.isBlank() && groups.length() > 0) selectedGroup = groups.getJSONObject(0).optString("id")
     }
-    fun loadCodes() = runTask { codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50)) }
-    fun loadAdmins() = runTask { adminList = admin(token, JSONObject().put("action", "list_admins")) }
-    fun loadAudit() = runTask { auditList = admin(token, JSONObject().put("action", "audit").put("page", 1).put("pageSize", 50)) }
+    fun refreshCodes() = task { codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50)) }
+    fun refreshAdmins() = task { adminList = admin(token, JSONObject().put("action", "list_admins")) }
+    fun refreshAudit() = task { auditList = admin(token, JSONObject().put("action", "audit").put("page", 1).put("pageSize", 50)) }
 
     val pages = listOf("Home", "Generate", "Codes", "Admins", "Activity", "Settings")
     val pageLabels = if (arabic) listOf("الرئيسية", "إنشاء كود", "الأكواد", "المسؤولون", "النشاط", "الإعدادات") else pages
-    val scheme = if (light) lightColorScheme(primary = accent, background = background, surface = panel,
-        onSurface = Color(0xFF192433), onBackground = Color(0xFF192433), onSurfaceVariant = muted)
-    else darkColorScheme(primary = accent, background = background, surface = panel,
-        onSurface = Color(0xFFEAF0F5), onBackground = Color(0xFFEAF0F5), onSurfaceVariant = muted)
+    val colors = if (light) lightColorScheme(primary = accent, background = bg, surface = panel, onSurface = Color(0xFF172330), onBackground = Color(0xFF172330), onSurfaceVariant = muted)
+        else darkColorScheme(primary = accent, background = bg, surface = panel, onSurface = Color(0xFFEAF0F5), onBackground = Color(0xFFEAF0F5), onSurfaceVariant = muted)
 
-    MaterialTheme(colorScheme = scheme) {
+    MaterialTheme(colorScheme = colors) {
         CompositionLocalProvider(LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr) {
-            Surface(Modifier.fillMaxSize(), color = background) {
+            Surface(Modifier.fillMaxSize(), color = bg) {
                 if (token.isBlank()) {
                     Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -148,19 +146,20 @@ private fun GeneratorApp() {
                             IconButton(onClick = { light = !light }) { Icon(if (light) Icons.Default.DarkMode else Icons.Default.LightMode, null) }
                         }
                         Text("ON36", color = accent, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
-                        Text(tr("Secure code control", "إدارة الأكواد الآمنة"), fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                        Text(tr("Secure code control", "إدارة الأكواد الآمنة"), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
+                        Text(tr("Private administrator workspace", "مساحة تحكم خاصة بالمسؤول"), color = muted, fontSize = 12.sp)
                         Spacer(Modifier.height(22.dp))
                         GlassCard {
                             SectionHeading(Icons.Default.Lock, tr("Administrator sign in", "دخول المسؤول"), accent)
-                            OutlinedTextField(email, { email = it }, modifier = Modifier.fillMaxWidth(), label = { Text(tr("Email", "البريد الإلكتروني")) }, singleLine = true)
+                            OutlinedTextField(email, { email = it }, modifier = Modifier.fillMaxWidth(), label = { Text(tr("Email address", "البريد الإلكتروني")) }, singleLine = true)
                             OutlinedTextField(password, { password = it }, modifier = Modifier.fillMaxWidth(), label = { Text(tr("Password", "كلمة المرور")) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
                             Button(onClick = {
-                                runTask {
+                                task {
                                     val auth = request("auth/v1/token?grant_type=password", body = JSONObject().put("email", email.trim()).put("password", password))
-                                    val sessionToken = auth.optString("access_token")
-                                    if (sessionToken.isBlank()) error("Login failed")
-                                    admin(sessionToken, JSONObject().put("action", "check_access"))
-                                    token = sessionToken
+                                    val newToken = auth.optString("access_token")
+                                    if (newToken.isBlank()) error("Login failed")
+                                    admin(newToken, JSONObject().put("action", "check_access"))
+                                    token = newToken
                                     userEmail = auth.optJSONObject("user")?.optString("email", email) ?: email
                                     overview = admin(token, JSONObject().put("action", "overview"))
                                     groups = overview.optJSONArray("groups") ?: JSONArray()
@@ -171,85 +170,85 @@ private fun GeneratorApp() {
                             }
                         }
                         if (message.isNotBlank()) Text(message, color = danger)
-                        Text(tr("Every action is verified by the secure backend.", "يتم التحقق من كل إجراء عبر الخادم الآمن."), color = muted, fontSize = 11.sp)
+                        Text(tr("Server-side administrator access checks", "التحقق من صلاحيات المسؤول من الخادم"), color = muted, fontSize = 11.sp)
                     }
                 } else {
                     Box(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize()) {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(onClick = { drawer = true }) { Icon(Icons.Default.Menu, null, tint = accent) }
                                 Column(Modifier.weight(1f)) {
-                                    Text("ON36 / CONTROL", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.4.sp)
+                                    Text("ON36 / CONTROL", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
                                     Text(tr("Hi, Omar", "أهلاً، عمر"), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 }
                                 TextButton(onClick = { arabic = !arabic }) { Text(if (arabic) "EN" else "ع") }
-                                IconButton(onClick = { light = !light }) { Icon(if (light) Icons.Default.DarkMode else Icons.Default.LightMode, null) }
+                                IconButton(onClick = { light = !light }) { Icon(if (light) Icons.Default.DarkMode else Icons.Default.LightMode, null, tint = muted) }
                             }
                             HorizontalDivider(color = muted.copy(alpha = .2f))
-                            AnimatedContent(targetState = page, transitionSpec = { fadeIn() + scaleIn(initialScale = .99f) togetherWith fadeOut() }, label = "page-transition", modifier = Modifier.weight(1f)) { screen ->
+                            AnimatedContent(targetState = page, transitionSpec = { fadeIn() + scaleIn(initialScale = .99f) togetherWith fadeOut() }, label = "page-switch", modifier = Modifier.weight(1f)) { screen ->
                                 when (screen) {
                                     "Home" -> {
-                                        val summary = overview.optJSONObject("summary") ?: JSONObject()
+                                        val s = overview.optJSONObject("summary") ?: JSONObject()
                                         val events = overview.optJSONArray("recentActivity") ?: overview.optJSONArray("activity") ?: JSONArray()
-                                        LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                        LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                                             item {
                                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                                     Column {
                                                         Text(tr("YOUR WORKSPACE", "مساحة عملك"), color = muted, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.2.sp)
-                                                        Text(tr("Command center", "لوحة التحكم"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                                                        Text(tr("Command center", "لوحة التحكم"), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
                                                     }
-                                                    Surface(shape = RoundedCornerShape(50), color = accent.copy(alpha = .15f)) {
-                                                        Text(tr("● SECURE", "● آمن"), color = accent, modifier = Modifier.padding(9.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                                    Surface(shape = RoundedCornerShape(50), color = accent.copy(alpha = .14f)) {
+                                                        Text(tr("● SECURE", "● آمن"), color = accent, modifier = Modifier.padding(horizontal = 10.dp, vertical = 7.dp), fontSize = 10.sp, fontWeight = FontWeight.Bold)
                                                     }
                                                 }
                                             }
                                             item {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                                                    MetricTile(Icons.Default.Key, tr("Total keys", "إجمالي المفاتيح"), summary.optString("total", "0"), Modifier.weight(1f), panel, muted, accent)
-                                                    MetricTile(Icons.Default.CheckCircle, tr("Available", "متاح"), summary.optString("available", "0"), Modifier.weight(1f), panel, muted, accent)
+                                                    MetricTile(Icons.Default.Key, tr("Total keys", "إجمالي المفاتيح"), s.optString("total", "0"), Modifier.weight(1f), panel, muted, accent)
+                                                    MetricTile(Icons.Default.CheckCircle, tr("Available", "متاح"), s.optString("available", "0"), Modifier.weight(1f), panel, muted, accent)
                                                 }
                                             }
                                             item {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                                                    MetricTile(Icons.Default.VerifiedUser, tr("Activated", "مُفعّل"), summary.optString("redeemed", "0"), Modifier.weight(1f), panel, muted, accent)
-                                                    MetricTile(Icons.Default.Block, tr("Revoked", "ملغي"), summary.optString("revoked", "0"), Modifier.weight(1f), panel, muted, danger)
+                                                    MetricTile(Icons.Default.VerifiedUser, tr("Activated", "مُفعّل"), s.optString("redeemed", "0"), Modifier.weight(1f), panel, muted, accent)
+                                                    MetricTile(Icons.Default.Block, tr("Revoked", "ملغي"), s.optString("revoked", "0"), Modifier.weight(1f), panel, muted, danger)
                                                 }
                                             }
                                             item {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
                                                     QuickAction(Icons.Default.Add, tr("Create key", "إنشاء مفتاح"), Modifier.weight(1f), panel, accent) { page = "Generate" }
-                                                    QuickAction(Icons.Default.VpnKey, tr("View codes", "عرض الأكواد"), Modifier.weight(1f), panel, accent) { page = "Codes"; loadCodes() }
+                                                    QuickAction(Icons.Default.VpnKey, tr("View codes", "عرض الأكواد"), Modifier.weight(1f), panel, accent) { page = "Codes"; refreshCodes() }
                                                 }
                                             }
                                             item {
                                                 GlassCard {
                                                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                                                         SectionHeading(Icons.Default.History, tr("Recent activity", "آخر النشاط"), accent)
-                                                        TextButton(onClick = { page = "Activity"; loadAudit() }) { Text(tr("See all", "عرض الكل")) }
+                                                        TextButton(onClick = { page = "Activity"; refreshAudit() }) { Text(tr("See all", "عرض الكل")) }
                                                     }
                                                     if (events.length() == 0) Text(tr("No recent activity yet", "لا يوجد نشاط حديث"), color = muted, fontSize = 12.sp)
-                                                    else (0 until minOf(3, events.length())).forEach { index ->
-                                                        val event = events.getJSONObject(index)
+                                                    else (0 until minOf(3, events.length())).forEach { idx ->
+                                                        val e = events.getJSONObject(idx)
                                                         Row(verticalAlignment = Alignment.CenterVertically) {
-                                                            Icon(Icons.Default.Circle, null, tint = accent, modifier = Modifier.size(8.dp))
-                                                            Spacer(Modifier.width(8.dp))
+                                                            Icon(Icons.Default.Circle, null, tint = accent, modifier = Modifier.size(7.dp))
+                                                            Spacer(Modifier.width(9.dp))
                                                             Column {
-                                                                Text(event.optString("action").replace("_", " ").uppercase(), fontWeight = FontWeight.SemiBold, fontSize = 11.sp)
-                                                                Text(event.optString("created_at").take(16).replace("T", " "), color = muted, fontSize = 10.sp)
+                                                                Text(e.optString("action").replace("_", " ").uppercase(), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                                                Text(e.optString("created_at").take(16).replace("T", " "), color = muted, fontSize = 10.sp)
                                                             }
                                                         }
                                                     }
                                                 }
                                             }
-                                            item { TextButton(onClick = { loadOverview() }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Refresh, null); Text(tr("Refresh overview", "تحديث الملخص")) } }
+                                            item { TextButton(onClick = { refreshOverview() }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.Refresh, null); Text(tr("Refresh overview", "تحديث الملخص")) } }
                                         }
                                     }
                                     "Generate" -> {
                                         LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(11.dp)) {
                                             item {
-                                                Text(tr("CREATE A KEY", "إنشاء مفتاح"), color = accent, fontWeight = FontWeight.Bold, fontSize = 10.sp, letterSpacing = 1.4.sp)
-                                                Text(tr("Choose membership", "اختر العضوية"), fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                                                Text(tr("Select a type, then configure its key.", "اختر النوع ثم جهّز تفاصيل المفتاح."), color = muted, fontSize = 11.sp)
+                                                Text(tr("CREATE A KEY", "إنشاء مفتاح"), color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                                                Text(tr("Choose membership", "اختر العضوية"), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold)
+                                                Text(tr("Pick a tier, then configure the key.", "حدد العضوية ثم اضبط المفتاح."), color = muted, fontSize = 11.sp)
                                             }
                                             item {
                                                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) {
@@ -265,10 +264,10 @@ private fun GeneratorApp() {
                                                     OutlinedTextField(batchName, { batchName = it }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                                                     LabelledField(tr("Code format", "طريقة إنشاء الكود"))
                                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                                        FilterChip(selected = generationMode == "Random", onClick = { generationMode = "Random" }, label = { Text(tr("Automatic", "تلقائي")) })
-                                                        FilterChip(selected = generationMode == "Custom", onClick = { generationMode = "Custom" }, label = { Text(tr("Custom", "مخصص")) })
+                                                        FilterChip(selected = mode == "Random", onClick = { mode = "Random" }, label = { Text(tr("Automatic", "تلقائي")) })
+                                                        FilterChip(selected = mode == "Custom", onClick = { mode = "Custom" }, label = { Text(tr("Custom", "مخصص")) })
                                                     }
-                                                    if (generationMode == "Random") {
+                                                    if (mode == "Random") {
                                                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                                             Column(Modifier.weight(1f)) {
                                                                 LabelledField(tr("Quantity", "الكمية"))
@@ -303,9 +302,9 @@ private fun GeneratorApp() {
                                                         val groupName = (0 until groups.length()).map { groups.optJSONObject(it) }.firstOrNull { it?.optString("id") == selectedGroup }?.optString("name") ?: tr("Choose group", "اختر المجموعة")
                                                         OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) { Text(groupName); Spacer(Modifier.weight(1f)); Icon(Icons.Default.ExpandMore, null) }
                                                         DropdownMenu(expanded, { expanded = false }) {
-                                                            (0 until groups.length()).forEach { index ->
-                                                                val group = groups.getJSONObject(index)
-                                                                DropdownMenuItem(text = { Text(group.optString("name")) }, onClick = { selectedGroup = group.optString("id"); expanded = false })
+                                                            (0 until groups.length()).forEach { idx ->
+                                                                val g = groups.getJSONObject(idx)
+                                                                DropdownMenuItem(text = { Text(g.optString("name")) }, onClick = { selectedGroup = g.optString("id"); expanded = false })
                                                             }
                                                         }
                                                     }
@@ -328,22 +327,22 @@ private fun GeneratorApp() {
                                                 Button(onClick = {
                                                     runTask {
                                                         if (selectedGroup.isBlank()) error("Select group")
-                                                        val expiresAt = if (forever) null else expiryAtEndOfLocalDay(expiryDate)
-                                                        if (generationMode == "Custom") {
-                                                            val codes = customCodes.lines().map { it.trim() }.filter { it.isNotBlank() }
-                                                            if (codes.isEmpty() || codes.size > 200) error("Enter 1–200 codes")
+                                                        val expiryAt = if (forever) null else expiryAtEndOfLocalDay(expiryDate)
+                                                        if (mode == "Custom") {
+                                                            val values = customCodes.lines().map { it.trim() }.filter { it.isNotBlank() }
+                                                            if (values.isEmpty() || values.size > 200) error("Enter 1–200 codes")
                                                             val array = JSONArray()
-                                                            codes.forEach { array.put(it) }
-                                                            val payload = JSONObject().put("action", "custom_generate").put("groupId", selectedGroup).put("codes", array).put("batchName", batchName).put("tier", tier).put("purpose", purpose).put("label", bio).put("note", note).put("expiresAt", expiresAt ?: JSONObject.NULL)
+                                                            values.forEach { array.put(it) }
+                                                            val payload = JSONObject().put("action", "custom_generate").put("groupId", selectedGroup).put("codes", array).put("batchName", batchName).put("tier", tier).put("purpose", purpose).put("label", bio).put("note", note).put("expiresAt", expiryAt ?: JSONObject.NULL)
                                                             admin(token, payload)
                                                             message = tr("Custom codes created", "تم إنشاء الأكواد المخصصة")
                                                             customCodes = ""
                                                         } else {
                                                             val count = quantity.toIntOrNull() ?: error("Invalid quantity")
                                                             val len = codeLength.toIntOrNull() ?: error("Invalid length")
-                                                            val payload = JSONObject().put("action", "generate").put("groupId", selectedGroup).put("count", count).put("codeLength", len).put("prefix", prefix).put("batchName", batchName).put("tier", tier).put("purpose", purpose).put("label", bio).put("note", note).put("expiresAt", expiresAt ?: JSONObject.NULL)
+                                                            val payload = JSONObject().put("action", "generate").put("groupId", selectedGroup).put("count", count).put("codeLength", len).put("prefix", prefix).put("batchName", batchName).put("tier", tier).put("purpose", purpose).put("label", bio).put("note", note).put("expiresAt", expiryAt ?: JSONObject.NULL)
                                                             val result = admin(token, payload)
-                                                            freshCodes = (0 until (result.optJSONArray("codes")?.length() ?: 0)).map { result.optJSONArray("codes")!!.optString(it) }
+                                                            newCodes = (0 until (result.optJSONArray("codes")?.length() ?: 0)).map { result.optJSONArray("codes")!!.optString(it) }
                                                             message = tr("Codes created", "تم إنشاء الأكواد")
                                                         }
                                                         codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50))
@@ -356,35 +355,35 @@ private fun GeneratorApp() {
                                         }
                                     }
                                     "Codes" -> {
-                                        val data = codeList.optJSONArray("items") ?: JSONArray()
-                                        val filtered = (0 until data.length()).map { data.getJSONObject(it) }.filter { row ->
-                                            val query = searchQuery.trim().lowercase()
-                                            val matches = query.isBlank() || row.optString("code_value").lowercase().contains(query) || row.optString("redeemer_email").lowercase().contains(query)
-                                            val matchesStatus = statusFilter == "All" || (statusFilter == "Active" && row.optBoolean("active_now")) || (statusFilter == "Available" && row.optString("status") == "available") || (statusFilter == "Revoked" && row.optString("status") == "revoked")
-                                            matches && matchesStatus
+                                        val array = codeList.optJSONArray("items") ?: JSONArray()
+                                        val filtered = (0 until array.length()).map { array.getJSONObject(it) }.filter { row ->
+                                            val q = search.trim().lowercase()
+                                            val queryMatches = q.isBlank() || row.optString("code_value").lowercase().contains(q) || row.optString("redeemer_email").lowercase().contains(q)
+                                            val statusMatches = statusFilter == "All" || (statusFilter == "Active" && row.optBoolean("active_now")) || (statusFilter == "Available" && row.optString("status") == "available") || (statusFilter == "Revoked" && row.optString("status") == "revoked")
+                                            queryMatches && statusMatches
                                         }
                                         LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                                             item {
                                                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                                                     Column { Text(tr("YOUR REGISTRY", "سجل الأكواد"), color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold); Text(tr("Keys & memberships", "المفاتيح والعضويات"), fontSize = 22.sp, fontWeight = FontWeight.ExtraBold) }
-                                                    IconButton(onClick = { loadCodes() }) { Icon(Icons.Default.Refresh, null, tint = accent) }
+                                                    IconButton(onClick = { refreshCodes() }) { Icon(Icons.Default.Refresh, null, tint = accent) }
                                                 }
                                             }
-                                            item { OutlinedTextField(searchQuery, { searchQuery = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text(tr("Search code or email", "ابحث بالكود أو البريد")) }, leadingIcon = { Icon(Icons.Default.Search, null) }) }
+                                            item { OutlinedTextField(search, { search = it }, modifier = Modifier.fillMaxWidth(), singleLine = true, placeholder = { Text(tr("Search code or email", "ابحث بالكود أو البريد")) }, leadingIcon = { Icon(Icons.Default.Search, null) }) }
                                             item {
-                                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                                                     listOf("All", "Active", "Available", "Revoked").forEach { value ->
-                                                        FilterChip(selected = statusFilter == value, onClick = { statusFilter = value }, label = { Text(when (value) { "All" -> tr("All", "الكل"); "Active" -> tr("Active", "نشط"); "Available" -> tr("Unused", "غير مستخدم"); else -> tr("Revoked", "ملغي") }, fontSize = 10.sp) })
+                                                        FilterChip(selected = statusFilter == value, onClick = { statusFilter = value }, label = { Text(when (value) { "All" -> tr("All", "الكل"); "Active" -> tr("Active", "نشط"); "Available" -> tr("Unused", "غير مستخدم"); else -> tr("Revoked", "ملغي") }, fontSize = 9.sp) })
                                                     }
                                                 }
                                             }
-                                            if (freshCodes.isNotEmpty()) item {
+                                            if (newCodes.isNotEmpty()) item {
                                                 GlassCard {
                                                     SectionHeading(Icons.Default.CheckCircle, tr("Created successfully", "تم الإنشاء بنجاح"), accent)
-                                                    freshCodes.forEach { Text(it, color = accent, fontWeight = FontWeight.Bold) }
+                                                    newCodes.forEach { Text(it, color = accent, fontWeight = FontWeight.Bold) }
                                                     Button(onClick = {
                                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                        clipboard.setPrimaryClip(ClipData.newPlainText("ON36", freshCodes.joinToString("\n")))
+                                                        clipboard.setPrimaryClip(ClipData.newPlainText("ON36", newCodes.joinToString("\n")))
                                                         message = tr("Copied", "تم النسخ")
                                                     }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.ContentCopy, null); Text(tr("Copy all", "نسخ الكل")) }
                                                 }
@@ -422,7 +421,12 @@ private fun GeneratorApp() {
                                                                 val event = history!!.getJSONObject(index)
                                                                 Text(event.optString("action") + " · " + event.optString("created_at"), fontSize = 9.sp, color = muted)
                                                             }
-                                                            if (row.optString("status") == "available") OutlinedButton(onClick = { runTask { admin(token, JSONObject().put("action", "revoke_code").put("codeId", row.optString("id")); codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50)) } }, modifier = Modifier.fillMaxWidth()) { Text(tr("Revoke key", "إلغاء المفتاح"), color = danger) }
+                                                            if (row.optString("status") == "available") OutlinedButton(onClick = {
+                                                                runTask {
+                                                                    admin(token, JSONObject().put("action", "revoke_code").put("codeId", row.optString("id")))
+                                                                    codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50))
+                                                                }
+                                                            }, modifier = Modifier.fillMaxWidth()) { Text(tr("Revoke key", "إلغاء المفتاح"), color = danger) }
                                                         }
                                                     }
                                                 }
@@ -431,7 +435,7 @@ private fun GeneratorApp() {
                                         }
                                     }
                                     "Admins" -> {
-                                        val admins = adminList.optJSONArray("admins") ?: JSONArray()
+                                        val adminItems = adminList.optJSONArray("admins") ?: JSONArray()
                                         LazyColumn(Modifier.fillMaxSize().padding(16.dp), verticalArrangement = Arrangement.spacedBy(9.dp)) {
                                             item { Text(tr("ACCESS CONTROL", "إدارة الوصول"), color = accent, fontSize = 10.sp, fontWeight = FontWeight.Bold); Text(tr("Administrators", "المسؤولون"), fontSize = 23.sp, fontWeight = FontWeight.ExtraBold) }
                                             item {
@@ -441,13 +445,13 @@ private fun GeneratorApp() {
                                                     Button(onClick = { runTask { admin(token, JSONObject().put("action", "add_admin").put("email", adminEmail.trim())); adminEmail = ""; adminList = admin(token, JSONObject().put("action", "list_admins")) } }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(tr("Add admin", "إضافة مسؤول")) }
                                                 }
                                             }
-                                            items((0 until admins.length()).map { admins.getJSONObject(it) }) { item ->
+                                            items((0 until adminItems.length()).map { adminItems.getJSONObject(it) }) { item ->
                                                 GlassCard {
                                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                                         Icon(Icons.Default.AdminPanelSettings, null, tint = accent)
                                                         Spacer(Modifier.width(8.dp))
                                                         Column(Modifier.weight(1f)) { Text(item.optString("email")); Text(tr("Administrator", "مسؤول"), fontSize = 10.sp, color = muted) }
-                                                        IconButton(onClick = { runTask { admin(token, JSONObject().put("action", "revoke_admin").put("userId", item.optString("user_id")); adminList = admin(token, JSONObject().put("action", "list_admins")) } }) { Icon(Icons.Default.DeleteOutline, null, tint = danger) }
+                                                        IconButton(onClick = { runTask { admin(token, JSONObject().put("action", "revoke_admin").put("userId", item.optString("user_id"))); adminList = admin(token, JSONObject().put("action", "list_admins")) } }) { Icon(Icons.Default.DeleteOutline, null, tint = danger) }
                                                     }
                                                 }
                                             }
@@ -483,7 +487,7 @@ private fun GeneratorApp() {
                             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth(), color = accent)
                         }
                         AnimatedVisibility(drawer, enter = fadeIn(), exit = fadeOut()) {
-                            Row(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .46f))) {
+                            Row(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f))) {
                                 Column(Modifier.fillMaxHeight().fillMaxWidth(.82f).background(panel).padding(18.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text("ON36", color = accent, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
@@ -496,7 +500,7 @@ private fun GeneratorApp() {
                                             icon = { Icon(when (name) { "Home" -> Icons.Default.Home; "Generate" -> Icons.Default.AddCircle; "Codes" -> Icons.Default.VpnKey; "Admins" -> Icons.Default.People; "Activity" -> Icons.Default.History; else -> Icons.Default.Settings }, null) },
                                             label = { Text(pageLabels[index]) },
                                             selected = page == name,
-                                            onClick = { drawer = false; page = name; when (name) { "Home" -> loadOverview(); "Codes" -> loadCodes(); "Admins" -> loadAdmins(); "Activity" -> loadAudit() } }
+                                            onClick = { drawer = false; page = name; when (name) { "Home" -> refreshOverview(); "Codes" -> refreshCodes(); "Admins" -> refreshAdmins(); "Activity" -> refreshAudit() } }
                                         )
                                     }
                                     Spacer(Modifier.weight(1f))
@@ -550,9 +554,7 @@ private fun GeneratorApp() {
         Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp), content = content)
     }
 }
-
-@Composable
-private fun GlassCard(content: @Composable ColumnScope.() -> Unit) {
+(content: @Composable ColumnScope.() -> Unit) {
     Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=panel),elevation=CardDefaults.cardElevation(defaultElevation=3.dp)) {
         Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)
     }
