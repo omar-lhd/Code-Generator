@@ -280,6 +280,7 @@ private fun GeneratorApp() {
                                 items((0 until items.length()).map { items.getJSONObject(it) }) { row ->
                                     GlassCard {
                                         Text(row.optString("code_label").ifBlank { "Invite code" },color=cyan,fontWeight=FontWeight.Bold)
+                                        Text("CODE: ${row.optString("code_value","").ifBlank { "Unavailable for legacy hash-only codes" }}",color=cyan,fontSize=15.sp,fontWeight=FontWeight.Bold,letterSpacing=1.sp)
                                         Text("ID: ${row.optString("id")}",color=muted,fontSize=11.sp)
                                         Text("Status: ${row.optString("status").uppercase()}",fontWeight=FontWeight.SemiBold)
                                         if (row.optString("redeemer_email").isNotBlank()) Text("Redeemed by: ${row.optString("redeemer_email")}",color=cyan,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
@@ -288,7 +289,7 @@ private fun GeneratorApp() {
                                             Text("Active ${row.optInt("active_minutes")} min ago" + if(row.optBoolean("active_now")) " • ACTIVE NOW" else "",color=if(row.optBoolean("active_now")) cyan else muted,fontSize=12.sp)
                                         }
                                         Text("Created: ${row.optString("created_at").take(16).replace("T"," ")}",color=muted,fontSize=12.sp)
-                                        Text("Expires: ${row.optString("expires_at").take(19).replace("T"," ").ifBlank { "Never" }}",color=muted,fontSize=12.sp)
+                                        Text("Expires: ${row.optString("expires_at","").take(19).replace("T"," ").ifBlank { "Never" }}",color=muted,fontSize=12.sp)
                                         Text("Note: ${row.optString("internal_note").ifBlank { "—" }}",color=muted,fontSize=12.sp)
                                         if(row.optString("status")=="available") Button(onClick={runTask {
                                             admin(token,JSONObject().put("action","revoke_code").put("codeId",row.optString("id")))
