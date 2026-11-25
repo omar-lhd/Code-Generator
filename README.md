@@ -5,8 +5,8 @@ Native Android administrator console for invite-code control in the Private Stud
 ## Included
 - Supabase email/password sign-in with server-side admin allowlist validation
 - Dashboard counts and generation activity
-- Random code batches with count, length, prefix, label, purpose, notes and expiry date or Forever
-- Manual custom codes (one per line, up to 200 per batch), duplicate detection, and expiry date or Forever
+- Random code batches with count, length, prefix, tier, purpose, label, notes and expiry date or Forever
+- Manual custom codes (one per line, up to 200 per batch), tier/purpose, duplicate detection, and expiry date or Forever
 - Code registry showing stored code value, status, batch, notes, expiry, redeemer email and activation time
 - Elapsed time since activation and active-now status
 - Per-code audit history and code revocation
