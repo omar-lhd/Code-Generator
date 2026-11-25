@@ -115,9 +115,7 @@ private fun GeneratorApp() {
     val accent = Color(0xFF48D9B5)
     val danger = Color(0xFFE47770)
     fun tr(en: String, ar: String) = if (arabic) ar else en
-    fun runTask(block: suspend () -> Unit) { task(block) }
-
-    fun task(block: suspend () -> Unit) {
+    fun runTask(block: suspend () -> Unit) {
         scope.launch {
             busy = true
             message = ""
