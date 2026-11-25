@@ -552,12 +552,3 @@ private fun GeneratorApp() {
         Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp), content = content)
     }
 }
-@Composable
-private fun StatCard(title:String,value:String,modifier:Modifier=Modifier) {
-    Card(modifier=modifier,shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=panel)) {
-        Column(Modifier.padding(16.dp)) {
-            Text(title,color=muted,fontSize=11.sp,fontWeight=FontWeight.Bold,letterSpacing=1.sp)
-            Text(value,color=cyan,fontSize=30.sp,fontWeight=FontWeight.ExtraBold)
-        }
-    }
-}
