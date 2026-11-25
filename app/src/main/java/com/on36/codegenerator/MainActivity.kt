@@ -1,6 +1,9 @@
 package com.on36.codegenerator
 
 import android.os.Bundle
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
@@ -11,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -29,6 +33,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import java.time.LocalDate
+import java.time.ZoneId
 
 private const val PROJECT_URL = "https://qoujujwecszmwcabevmv.supabase.co"
 private const val PUBLIC_KEY = "sb_publishable_YNGPNPX7wGrSsaIRbweYIw_uxWaoLZy"
@@ -36,6 +42,10 @@ private val ink = Color(0xFF080D18)
 private val panel = Color(0xFF111B2B)
 private val cyan = Color(0xFF57E7F4)
 private val muted = Color(0xFF94A6BE)
+private fun expiryAtEndOfLocalDay(dateText: String): String {
+    val date = LocalDate.parse(dateText.trim())
+    return date.atTime(23, 59, 59).atZone(ZoneId.systemDefault()).toInstant().toString()
+}
 private val http = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).readTimeout(30, TimeUnit.SECONDS).build()
 
 class MainActivity : ComponentActivity() {
@@ -86,6 +96,11 @@ private fun GeneratorApp() {
     var note by remember { mutableStateOf("") }
     var adminUuid by remember { mutableStateOf("") }
     var freshCodes by remember { mutableStateOf(listOf<String>()) }
+    var generationMode by remember { mutableStateOf("Random") }
+    var customCodesText by remember { mutableStateOf("") }
+    var forever by remember { mutableStateOf(true) }
+    var expiryDateText by remember { mutableStateOf("") }
+    val context = LocalContext.current
 
     fun runTask(task: suspend () -> Unit) {
         scope.launch {
@@ -180,6 +195,26 @@ private fun GeneratorApp() {
                             LazyColumn(Modifier.weight(1f).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(12.dp)) {
                                 item { GlassCard {
                                     Text("NEW CODE BATCH",color=cyan,fontWeight=FontWeight.Bold)
+                                    Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                                        listOf("Random","Custom").forEach { mode ->
+                                            if (generationMode == mode) Button(onClick={generationMode=mode},modifier=Modifier.weight(1f)){Text(mode.uppercase())}
+                                            else OutlinedButton(onClick={generationMode=mode},modifier=Modifier.weight(1f)){Text(mode.uppercase())}
+                                        }
+                                    }
+                                    if (generationMode == "Custom") {
+                                        OutlinedTextField(customCodesText,{customCodesText=it},label={Text("Custom codes — one per line")},placeholder={Text("ON36-PREMIUM-2026\\nVIP_OMAR_01")},modifier=Modifier.fillMaxWidth(),minLines=4)
+                                        Text("4–64 chars per code: A–Z, 0–9, underscore or hyphen. Duplicate codes are rejected.",color=muted,fontSize=12.sp)
+                                    }
+                                    Row(verticalAlignment=Alignment.CenterVertically,modifier=Modifier.fillMaxWidth()) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text("Never expires",fontWeight=FontWeight.SemiBold)
+                                            Text(if(forever) "Forever" else "Set expiry date",color=muted,fontSize=12.sp)
+                                        }
+                                        Switch(checked=forever,onCheckedChange={forever=it})
+                                    }
+                                    if (!forever) {
+                                        OutlinedTextField(expiryDateText,{expiryDateText=it},label={Text("Expiry date (YYYY-MM-DD)")},placeholder={Text("2027-12-31")},modifier=Modifier.fillMaxWidth(),singleLine=true)
+                                    }
                                     if(groups.length()==0) Text("No study groups exist yet. Create a group in the Study admin tools first.",color=muted)
                                     else {
                                         var expanded by remember { mutableStateOf(false) }
@@ -188,23 +223,42 @@ private fun GeneratorApp() {
                                         DropdownMenu(expanded,{expanded=false}) { (0 until groups.length()).forEach { i -> val g=groups.getJSONObject(i); DropdownMenuItem(text={Text(g.optString("name"))},onClick={selectedGroup=g.optString("id");expanded=false}) } }
                                     }
                                     OutlinedTextField(batchName,{batchName=it},label={Text("Batch name")},modifier=Modifier.fillMaxWidth())
-                                    OutlinedTextField(quantity,{quantity=it},label={Text("Quantity (1–200)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.fillMaxWidth())
-                                    OutlinedTextField(codeLength,{codeLength=it},label={Text("Code length (12–32)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.fillMaxWidth())
-                                    OutlinedTextField(prefix,{prefix=it},label={Text("Prefix (optional, up to 8)")},modifier=Modifier.fillMaxWidth())
+                                    if (generationMode == "Random") {
+                                        OutlinedTextField(quantity,{quantity=it},label={Text("Quantity (1–200)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.fillMaxWidth())
+                                        OutlinedTextField(codeLength,{codeLength=it},label={Text("Code length (12–32)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.fillMaxWidth())
+                                        OutlinedTextField(prefix,{prefix=it},label={Text("Prefix (optional, up to 8)")},modifier=Modifier.fillMaxWidth())
+                                    }
                                     OutlinedTextField(purpose,{purpose=it},label={Text("Purpose")},modifier=Modifier.fillMaxWidth())
                                     OutlinedTextField(customLabel,{customLabel=it},label={Text("Code label")},modifier=Modifier.fillMaxWidth())
                                     OutlinedTextField(note,{note=it},label={Text("Internal note")},modifier=Modifier.fillMaxWidth())
                                     Spacer(Modifier.height(12.dp))
                                     Button(onClick={runTask {
                                         if(selectedGroup.isBlank()) throw IllegalStateException("Select a group")
-                                        val n=quantity.toIntOrNull() ?: throw IllegalStateException("Quantity must be a number")
-                                        val len=codeLength.toIntOrNull() ?: throw IllegalStateException("Code length must be a number")
-                                        val result=admin(token,JSONObject().put("action","generate").put("groupId",selectedGroup).put("count",n).put("codeLength",len).put("prefix",prefix.trim()).put("batchName",batchName.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim()))
-                                        freshCodes = (0 until (result.optJSONArray("codes")?.length() ?: 0)).map { result.optJSONArray("codes")!!.optString(it) }
-                                        message="Created batch ${result.optJSONObject("batch")?.optString("name") ?: batchName}. ${freshCodes.size} codes generated."
+                                        val expiresAt = if (forever) null else expiryAtEndOfLocalDay(expiryDateText)
+                                        if (generationMode == "Custom") {
+                                            val codeValues = customCodesText.lines().map { it.trim() }.filter { it.isNotBlank() }
+                                            if (codeValues.isEmpty()) throw IllegalStateException("Enter at least one custom code")
+                                            if (codeValues.size > 200) throw IllegalStateException("Maximum 200 custom codes per batch")
+                                            val codeArray = JSONArray()
+                                            codeValues.forEach { codeArray.put(it) }
+                                            val payload = JSONObject().put("action","custom_generate").put("groupId",selectedGroup).put("codes",codeArray).put("batchName",batchName.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim())
+                                            payload.put("expiresAt", expiresAt ?: JSONObject.NULL)
+                                            val result = admin(token,payload)
+                                            freshCodes = emptyList()
+                                            customCodesText = ""
+                                            message="Created custom batch ${result.optJSONObject("batch")?.optString("name") ?: batchName}. ${result.optInt("count")} codes saved."
+                                        } else {
+                                            val n=quantity.toIntOrNull() ?: throw IllegalStateException("Quantity must be a number")
+                                            val len=codeLength.toIntOrNull() ?: throw IllegalStateException("Code length must be a number")
+                                            val payload=JSONObject().put("action","generate").put("groupId",selectedGroup).put("count",n).put("codeLength",len).put("prefix",prefix.trim()).put("batchName",batchName.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim())
+                                            payload.put("expiresAt",expiresAt ?: JSONObject.NULL)
+                                            val result=admin(token,payload)
+                                            freshCodes = (0 until (result.optJSONArray("codes")?.length() ?: 0)).map { result.optJSONArray("codes")!!.optString(it) }
+                                            message="Created batch ${result.optJSONObject("batch")?.optString("name") ?: batchName}. ${freshCodes.size} codes generated."
+                                        }
                                         page="Codes"
                                         codeList=admin(token,JSONObject().put("action","list_codes").put("page",1).put("pageSize",50))
-                                    }},modifier=Modifier.fillMaxWidth(),enabled=!busy && groups.length()>0){Text("GENERATE CODES")}
+                                    }},modifier=Modifier.fillMaxWidth(),enabled=!busy && groups.length()>0){Text(if(generationMode=="Custom") "SAVE CUSTOM CODES" else "GENERATE CODES")}
                                     Text("Codes are generated securely on the server and stored as hashes.",color=muted,fontSize=12.sp)
                                 } }
                             }
@@ -217,13 +271,24 @@ private fun GeneratorApp() {
                                     Text("JUST GENERATED — SAVE THESE CODES", color=cyan, fontWeight=FontWeight.Bold)
                                     Text("They are shown only now; the backend stores a hash, not the original code.", color=muted, fontSize=12.sp)
                                     freshCodes.forEach { Text(it, fontSize=16.sp, fontWeight=FontWeight.Bold, letterSpacing=1.sp) }
+                                    Button(onClick={
+                                        val clipboard=context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Generated invite codes",freshCodes.joinToString("\\n")))
+                                        message="Codes copied to clipboard."
+                                    },modifier=Modifier.fillMaxWidth()){Text("COPY ALL CODES")}
                                 } }
                                 items((0 until items.length()).map { items.getJSONObject(it) }) { row ->
                                     GlassCard {
                                         Text(row.optString("code_label").ifBlank { "Invite code" },color=cyan,fontWeight=FontWeight.Bold)
                                         Text("ID: ${row.optString("id")}",color=muted,fontSize=11.sp)
                                         Text("Status: ${row.optString("status").uppercase()}",fontWeight=FontWeight.SemiBold)
+                                        if (row.optString("redeemer_email").isNotBlank()) Text("Redeemed by: ${row.optString("redeemer_email")}",color=cyan,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
+                                        if (row.optString("activated_at").isNotBlank()) {
+                                            Text("Activated: ${row.optString("activated_at").take(19).replace("T"," ")} UTC",color=muted,fontSize=12.sp)
+                                            Text("Active ${row.optInt("active_minutes")} min ago" + if(row.optBoolean("active_now")) " • ACTIVE NOW" else "",color=if(row.optBoolean("active_now")) cyan else muted,fontSize=12.sp)
+                                        }
                                         Text("Created: ${row.optString("created_at").take(16).replace("T"," ")}",color=muted,fontSize=12.sp)
+                                        Text("Expires: ${row.optString("expires_at").take(19).replace("T"," ").ifBlank { "Never" }}",color=muted,fontSize=12.sp)
                                         Text("Note: ${row.optString("internal_note").ifBlank { "—" }}",color=muted,fontSize=12.sp)
                                         if(row.optString("status")=="available") Button(onClick={runTask {
                                             admin(token,JSONObject().put("action","revoke_code").put("codeId",row.optString("id")))
