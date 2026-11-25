@@ -25,6 +25,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -113,6 +115,7 @@ private fun GeneratorApp() {
     val accent = Color(0xFF48D9B5)
     val danger = Color(0xFFE47770)
     fun tr(en: String, ar: String) = if (arabic) ar else en
+    fun runTask(block: suspend () -> Unit) { task(block) }
 
     fun task(block: suspend () -> Unit) {
         scope.launch {
@@ -421,12 +424,7 @@ private fun GeneratorApp() {
                                                                 val event = history!!.getJSONObject(index)
                                                                 Text(event.optString("action") + " · " + event.optString("created_at"), fontSize = 9.sp, color = muted)
                                                             }
-                                                            if (row.optString("status") == "available") OutlinedButton(onClick = {
-                                                                runTask {
-                                                                    admin(token, JSONObject().put("action", "revoke_code").put("codeId", row.optString("id")))
-                                                                    codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50))
-                                                                }
-                                                            }, modifier = Modifier.fillMaxWidth()) { Text(tr("Revoke key", "إلغاء المفتاح"), color = danger) }
+                                                            if (row.optString("status") == "available") OutlinedButton(onClick = { runTask { admin(token, JSONObject().put("action", "revoke_code").put("codeId", row.optString("id"))); codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50)) } }, modifier = Modifier.fillMaxWidth()) { Text(tr("Revoke key", "إلغاء المفتاح"), color = danger) }
                                                         }
                                                     }
                                                 }
