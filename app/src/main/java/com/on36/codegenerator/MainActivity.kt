@@ -554,12 +554,6 @@ private fun GeneratorApp() {
         Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp), content = content)
     }
 }
-(content: @Composable ColumnScope.() -> Unit) {
-    Card(modifier=Modifier.fillMaxWidth(),shape=RoundedCornerShape(22.dp),colors=CardDefaults.cardColors(containerColor=panel),elevation=CardDefaults.cardElevation(defaultElevation=3.dp)) {
-        Column(Modifier.padding(18.dp),verticalArrangement=Arrangement.spacedBy(10.dp),content=content)
-    }
-}
-
 @Composable
 private fun StatCard(title:String,value:String,modifier:Modifier=Modifier) {
     Card(modifier=modifier,shape=RoundedCornerShape(20.dp),colors=CardDefaults.cardColors(containerColor=panel)) {
