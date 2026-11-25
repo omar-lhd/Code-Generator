@@ -1,31 +1,37 @@
-name: Build Android APK
+name: Android APK build
 on:
   push:
-    branches: [main]
-  workflow_dispatch:
+    branches:
+      - main
+  workflow_dispatch: {}
 permissions:
   contents: read
 jobs:
   build:
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
-      - name: Accept Android SDK licenses
+          java-version: 17
+      - name: Locate Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la "$ANDROID_HOME/cmdline-tools"
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --version
+      - name: Accept Android licenses
         run: yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-      - name: Install Android SDK platform and build tools
+      - name: Install Android SDK
         run: "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-      - name: Build debug APK
+      - name: Build APK
         uses: gradle/gradle-build-action@v3
         with:
           gradle-version: 8.9
           arguments: assembleDebug --no-daemon
-      - name: Upload installable APK
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: ON36-Code-Generator-debug-apk
