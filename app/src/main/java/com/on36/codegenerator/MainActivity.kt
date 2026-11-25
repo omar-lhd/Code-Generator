@@ -92,6 +92,7 @@ private fun GeneratorApp() {
     var codeLength by remember { mutableStateOf("16") }
     var prefix by remember { mutableStateOf("") }
     var purpose by remember { mutableStateOf("Premium access") }
+    var tier by remember { mutableStateOf("Premium") }
     var customLabel by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
     var adminEmail by remember { mutableStateOf("") }
@@ -228,6 +229,7 @@ private fun GeneratorApp() {
                                         OutlinedTextField(codeLength,{codeLength=it},label={Text("Code length (12–32)")},keyboardOptions=KeyboardOptions(keyboardType=KeyboardType.Number),modifier=Modifier.fillMaxWidth())
                                         OutlinedTextField(prefix,{prefix=it},label={Text("Prefix (optional, up to 8)")},modifier=Modifier.fillMaxWidth())
                                     }
+                                    OutlinedTextField(tier,{tier=it},label={Text("Code tier (e.g. Premium, VIP)")},modifier=Modifier.fillMaxWidth(),singleLine=true)
                                     OutlinedTextField(purpose,{purpose=it},label={Text("Purpose")},modifier=Modifier.fillMaxWidth())
                                     OutlinedTextField(customLabel,{customLabel=it},label={Text("Code label")},modifier=Modifier.fillMaxWidth())
                                     OutlinedTextField(note,{note=it},label={Text("Internal note")},modifier=Modifier.fillMaxWidth())
@@ -241,7 +243,7 @@ private fun GeneratorApp() {
                                             if (codeValues.size > 200) throw IllegalStateException("Maximum 200 custom codes per batch")
                                             val codeArray = JSONArray()
                                             codeValues.forEach { codeArray.put(it) }
-                                            val payload = JSONObject().put("action","custom_generate").put("groupId",selectedGroup).put("codes",codeArray).put("batchName",batchName.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim())
+                                            val payload = JSONObject().put("action","custom_generate").put("groupId",selectedGroup).put("codes",codeArray).put("batchName",batchName.trim()).put("tier",tier.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim())
                                             payload.put("expiresAt", expiresAt ?: JSONObject.NULL)
                                             val result = admin(token,payload)
                                             freshCodes = emptyList()
@@ -250,7 +252,7 @@ private fun GeneratorApp() {
                                         } else {
                                             val n=quantity.toIntOrNull() ?: throw IllegalStateException("Quantity must be a number")
                                             val len=codeLength.toIntOrNull() ?: throw IllegalStateException("Code length must be a number")
-                                            val payload=JSONObject().put("action","generate").put("groupId",selectedGroup).put("count",n).put("codeLength",len).put("prefix",prefix.trim()).put("batchName",batchName.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim())
+                                            val payload=JSONObject().put("action","generate").put("groupId",selectedGroup).put("count",n).put("codeLength",len).put("prefix",prefix.trim()).put("batchName",batchName.trim()).put("tier",tier.trim()).put("purpose",purpose.trim()).put("label",customLabel.trim()).put("note",note.trim())
                                             payload.put("expiresAt",expiresAt ?: JSONObject.NULL)
                                             val result=admin(token,payload)
                                             freshCodes = (0 until (result.optJSONArray("codes")?.length() ?: 0)).map { result.optJSONArray("codes")!!.optString(it) }
@@ -282,6 +284,7 @@ private fun GeneratorApp() {
                                         var historyRows by remember(row.optString("id")) { mutableStateOf<JSONArray?>(null) }
                                         Text(row.optString("code_label").ifBlank { "Invite code" },color=cyan,fontWeight=FontWeight.Bold)
                                         Text("CODE: ${row.optString("code_value","").ifBlank { "Unavailable for legacy hash-only codes" }}",color=cyan,fontSize=15.sp,fontWeight=FontWeight.Bold,letterSpacing=1.sp)
+                                        if(row.optString("tier").isNotBlank()) Text("Tier: ${row.optString("tier")} • ${row.optString("batch_name")}",color=muted,fontSize=12.sp)
                                         Text("ID: ${row.optString("id")}",color=muted,fontSize=11.sp)
                                         Text("Status: ${row.optString("status").uppercase()}",fontWeight=FontWeight.SemiBold)
                                         if (row.optString("redeemer_email").isNotBlank()) Text("Redeemed by: ${row.optString("redeemer_email")}",color=cyan,fontSize=13.sp,fontWeight=FontWeight.SemiBold)
