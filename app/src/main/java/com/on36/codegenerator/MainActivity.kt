@@ -94,7 +94,7 @@ private fun GeneratorApp() {
     var purpose by remember { mutableStateOf("Premium access") }
     var customLabel by remember { mutableStateOf("") }
     var note by remember { mutableStateOf("") }
-    var adminUuid by remember { mutableStateOf("") }
+    var adminEmail by remember { mutableStateOf("") }
     var freshCodes by remember { mutableStateOf(listOf<String>()) }
     var generationMode by remember { mutableStateOf("Random") }
     var customCodesText by remember { mutableStateOf("") }
@@ -279,6 +279,7 @@ private fun GeneratorApp() {
                                 } }
                                 items((0 until items.length()).map { items.getJSONObject(it) }) { row ->
                                     GlassCard {
+                                        var historyRows by remember(row.optString("id")) { mutableStateOf<JSONArray?>(null) }
                                         Text(row.optString("code_label").ifBlank { "Invite code" },color=cyan,fontWeight=FontWeight.Bold)
                                         Text("CODE: ${row.optString("code_value","").ifBlank { "Unavailable for legacy hash-only codes" }}",color=cyan,fontSize=15.sp,fontWeight=FontWeight.Bold,letterSpacing=1.sp)
                                         Text("ID: ${row.optString("id")}",color=muted,fontSize=11.sp)
@@ -291,6 +292,17 @@ private fun GeneratorApp() {
                                         Text("Created: ${row.optString("created_at").take(16).replace("T"," ")}",color=muted,fontSize=12.sp)
                                         Text("Expires: ${row.optString("expires_at","").take(19).replace("T"," ").ifBlank { "Never" }}",color=muted,fontSize=12.sp)
                                         Text("Note: ${row.optString("internal_note").ifBlank { "—" }}",color=muted,fontSize=12.sp)
+                                        OutlinedButton(onClick={runTask {
+                                            val history=admin(token,JSONObject().put("action","code_history").put("codeId",row.optString("id")))
+                                            historyRows=history.optJSONArray("items") ?: JSONArray()
+                                        }},enabled=!busy,modifier=Modifier.fillMaxWidth()){Text(if(historyRows==null) "VIEW CODE HISTORY" else "REFRESH CODE HISTORY")}
+                                        if(historyRows!=null) {
+                                            if(historyRows!!.length()==0) Text("No history events recorded.",color=muted,fontSize=12.sp)
+                                            else (0 until historyRows!!.length()).forEach { h ->
+                                                val event=historyRows!!.getJSONObject(h)
+                                                Text("${event.optString("action").replace("_"," ").uppercase()} • ${event.optString("created_at").take(19).replace("T"," ")} UTC",color=muted,fontSize=12.sp)
+                                            }
+                                        }
                                         if(row.optString("status")=="available") Button(onClick={runTask {
                                             admin(token,JSONObject().put("action","revoke_code").put("codeId",row.optString("id")))
                                             codeList=admin(token,JSONObject().put("action","list_codes").put("page",1).put("pageSize",50))
@@ -305,14 +317,14 @@ private fun GeneratorApp() {
                             LazyColumn(Modifier.weight(1f).padding(horizontal=16.dp),verticalArrangement=Arrangement.spacedBy(10.dp)) {
                                 item { GlassCard {
                                     Text("ADD ADMINISTRATOR",color=cyan,fontWeight=FontWeight.Bold)
-                                    OutlinedTextField(adminUuid,{adminUuid=it},label={Text("Supabase Auth user UUID")},modifier=Modifier.fillMaxWidth())
+                                    OutlinedTextField(adminEmail,{adminEmail=it},label={Text("Administrator email")},modifier=Modifier.fillMaxWidth(),singleLine=true)
                                     Button(onClick={runTask {
-                                        admin(token,JSONObject().put("action","add_admin").put("userId",adminUuid.trim()))
-                                        adminUuid=""
+                                        admin(token,JSONObject().put("action","add_admin").put("email",adminEmail.trim()))
+                                        adminEmail=""
                                         adminList=admin(token,JSONObject().put("action","list_admins"))
                                         message="Administrator added."
                                     }},modifier=Modifier.fillMaxWidth(),enabled=!busy){Text("ADD ADMIN")}
-                                    Text("The server checks the admin table for every operation.",color=muted,fontSize=12.sp)
+                                    Text("Add an existing Study account by email. Admin privileges are independent of group membership and checked server-side on every operation.",color=muted,fontSize=12.sp)
                                 } }
                                 items((0 until admins.length()).map{admins.getJSONObject(it)}) { a ->
                                     GlassCard {
