@@ -146,7 +146,7 @@ private fun GeneratorApp() {
                             TextButton(onClick = { arabic = !arabic }) { Text(if (arabic) "EN" else "عربي") }
                             IconButton(onClick = { light = !light }) { Icon(if (light) Icons.Default.DarkMode else Icons.Default.LightMode, null) }
                         }
-                        Text("ON36", color = accent, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
+                        Text("Code", color = accent, fontSize = 16.sp, fontWeight = FontWeight.Black, letterSpacing = 5.sp)
                         Text(tr("Secure code control", "إدارة الأكواد الآمنة"), fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
                         Text(tr("Private administrator workspace", "مساحة تحكم خاصة بالمسؤول"), color = muted, fontSize = 12.sp)
                         Spacer(Modifier.height(22.dp))
@@ -179,7 +179,7 @@ private fun GeneratorApp() {
                             Row(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(onClick = { drawer = true }) { Icon(Icons.Default.Menu, null, tint = accent) }
                                 Column(Modifier.weight(1f)) {
-                                    Text("ON36 / CONTROL", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
+                                    Text("CODE / GENERATOR", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
                                     Text(tr("Hi, Omar", "أهلاً، عمر"), fontSize = 20.sp, fontWeight = FontWeight.Bold)
                                 }
                                 TextButton(onClick = { arabic = !arabic }) { Text(if (arabic) "EN" else "ع") }
@@ -283,7 +283,7 @@ private fun GeneratorApp() {
                                                         OutlinedTextField(prefix, { prefix = it }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                                                     } else {
                                                         LabelledField(tr("Custom codes · one per line", "الأكواد المخصصة · كود بكل سطر"))
-                                                        OutlinedTextField(customCodes, { customCodes = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text("ON36-PREM-001\nVIP-OMAR-002") })
+                                                        OutlinedTextField(customCodes, { customCodes = it }, modifier = Modifier.fillMaxWidth(), minLines = 3, placeholder = { Text("Code-PREM-001\nVIP-OMAR-002") })
                                                     }
                                                 }
                                             }
@@ -384,7 +384,7 @@ private fun GeneratorApp() {
                                                     newCodes.forEach { Text(it, color = accent, fontWeight = FontWeight.Bold) }
                                                     Button(onClick = {
                                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                        clipboard.setPrimaryClip(ClipData.newPlainText("ON36", newCodes.joinToString("\n")))
+                                                        clipboard.setPrimaryClip(ClipData.newPlainText("Code", newCodes.joinToString("\n")))
                                                         message = tr("Copied", "تم النسخ")
                                                     }, modifier = Modifier.fillMaxWidth()) { Icon(Icons.Default.ContentCopy, null); Text(tr("Copy all", "نسخ الكل")) }
                                                 }
@@ -486,7 +486,7 @@ private fun GeneratorApp() {
                             Row(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f))) {
                                 Column(Modifier.fillMaxHeight().fillMaxWidth(.82f).background(panel).padding(18.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text("ON36", color = accent, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
+                                        Text("Code", color = accent, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
                                         IconButton(onClick = { drawer = false }) { Icon(Icons.Default.Close, null) }
                                     }
                                     Text(userEmail, color = muted, fontSize = 10.sp)
