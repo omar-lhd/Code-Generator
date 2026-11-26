@@ -326,7 +326,7 @@ private fun GeneratorApp() {
                                             }
                                             item {
                                                 Button(onClick = {
-                                                    runTask {
+                                                    task {
                                                         if (selectedGroup.isBlank()) error("Select group")
                                                         val expiryAt = if (forever) null else expiryAtEndOfLocalDay(expiryDate)
                                                         if (mode == "Custom") {
@@ -417,12 +417,12 @@ private fun GeneratorApp() {
                                                             Text(tr("Activated", "التفعيل") + ": " + row.optString("activated_at").ifBlank { "—" }, fontSize = 10.sp, color = muted)
                                                             Text(tr("Expires", "ينتهي") + ": " + row.optString("expires_at").ifBlank { tr("Never", "دائم") }, fontSize = 10.sp, color = muted)
                                                             Text(tr("Bio", "النبذة") + ": " + row.optString("code_label").ifBlank { "—" }, fontSize = 11.sp)
-                                                            OutlinedButton(onClick = { runTask { history = admin(token, JSONObject().put("action", "code_history").put("codeId", row.optString("id"))).optJSONArray("items") ?: JSONArray() } }, modifier = Modifier.fillMaxWidth()) { Text(tr("Show history", "عرض السجل")) }
+                                                            OutlinedButton(onClick = { task { history = admin(token, JSONObject().put("action", "code_history").put("codeId", row.optString("id"))).optJSONArray("items") ?: JSONArray() } }, modifier = Modifier.fillMaxWidth()) { Text(tr("Show history", "عرض السجل")) }
                                                             if (history != null) (0 until history!!.length()).forEach { index ->
                                                                 val event = history!!.getJSONObject(index)
                                                                 Text(event.optString("action") + " · " + event.optString("created_at"), fontSize = 9.sp, color = muted)
                                                             }
-                                                            if (row.optString("status") == "available") OutlinedButton(onClick = { runTask { admin(token, JSONObject().put("action", "revoke_code").put("codeId", row.optString("id"))); codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50)) } }, modifier = Modifier.fillMaxWidth()) { Text(tr("Revoke key", "إلغاء المفتاح"), color = danger) }
+                                                            if (row.optString("status") == "available") OutlinedButton(onClick = { task { admin(token, JSONObject().put("action", "revoke_code").put("codeId", row.optString("id"))); codeList = admin(token, JSONObject().put("action", "list_codes").put("page", 1).put("pageSize", 50)) } }, modifier = Modifier.fillMaxWidth()) { Text(tr("Revoke key", "إلغاء المفتاح"), color = danger) }
                                                         }
                                                     }
                                                 }
@@ -438,7 +438,7 @@ private fun GeneratorApp() {
                                                 GlassCard {
                                                     SectionHeading(Icons.Default.PersonAdd, tr("Add administrator", "إضافة مسؤول"), accent)
                                                     OutlinedTextField(adminEmail, { adminEmail = it }, modifier = Modifier.fillMaxWidth(), label = { Text(tr("Existing account email", "بريد الحساب الحالي")) })
-                                                    Button(onClick = { runTask { admin(token, JSONObject().put("action", "add_admin").put("email", adminEmail.trim())); adminEmail = ""; adminList = admin(token, JSONObject().put("action", "list_admins")) } }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(tr("Add admin", "إضافة مسؤول")) }
+                                                    Button(onClick = { task { admin(token, JSONObject().put("action", "add_admin").put("email", adminEmail.trim())); adminEmail = ""; adminList = admin(token, JSONObject().put("action", "list_admins")) } }, modifier = Modifier.fillMaxWidth(), enabled = !busy) { Text(tr("Add admin", "إضافة مسؤول")) }
                                                 }
                                             }
                                             items((0 until adminItems.length()).map { adminItems.getJSONObject(it) }) { item ->
@@ -447,7 +447,7 @@ private fun GeneratorApp() {
                                                         Icon(Icons.Default.AdminPanelSettings, null, tint = accent)
                                                         Spacer(Modifier.width(8.dp))
                                                         Column(Modifier.weight(1f)) { Text(item.optString("email")); Text(tr("Administrator", "مسؤول"), fontSize = 10.sp, color = muted) }
-                                                        IconButton(onClick = { runTask { admin(token, JSONObject().put("action", "revoke_admin").put("userId", item.optString("user_id"))); adminList = admin(token, JSONObject().put("action", "list_admins")) } }) { Icon(Icons.Default.DeleteOutline, null, tint = danger) }
+                                                        IconButton(onClick = { task { admin(token, JSONObject().put("action", "revoke_admin").put("userId", item.optString("user_id"))); adminList = admin(token, JSONObject().put("action", "list_admins")) } }) { Icon(Icons.Default.DeleteOutline, null, tint = danger) }
                                                     }
                                                 }
                                             }
