@@ -1,4 +1,4 @@
-# ON36 Code Generator
+# Code
 
 Native Android administrator console for invite-code control in the Private Study Community.
 
@@ -18,4 +18,4 @@ The deployed `invite-code-admin` Edge Function authenticates the Supabase sessio
 Original code values are kept in `public.code_admin_values`, a separate RLS-enabled table with privileges revoked from `anon` and `authenticated`; only the server's `service_role` can access it. The admin function returns values only after its server-side admin check. Existing codes created before this secure value table contain only SHA-256 hashes, so their original plaintext cannot be reconstructed; newly generated and custom codes are retained for authorized admin display.
 
 ## Build
-GitHub Actions builds a debug APK. Open the latest successful run and download **ON36-Code-Generator-debug-apk** from its Artifacts section.
+GitHub Actions builds a debug APK. Open the latest successful run and download **Code-Generator-debug-apk** from its Artifacts section.
