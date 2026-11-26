@@ -40,3 +40,5 @@ jobs:
 # build-refresh: helper ordering correction
 
 # rebuild-on-helper-name-fix
+
+# Trigger rebuild after coroutine helper fix
