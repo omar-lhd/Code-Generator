@@ -1,6 +1,10 @@
 package com.on36.codegenerator
 
 import android.os.Bundle
+import androidx.activity.enableEdgeToEdge
+import androidx.activity.SystemBarStyle
+import android.graphics.Color as AndroidColor
+import android.view.WindowManager
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -53,7 +57,15 @@ private val http = OkHttpClient.Builder().connectTimeout(20, TimeUnit.SECONDS).r
 private fun expiryAtEndOfLocalDay(dateText:String):String = LocalDate.parse(dateText.trim()).atTime(23,59,59).atZone(ZoneId.systemDefault()).toInstant().toString()
 
 class MainActivity : ComponentActivity() {
-    override fun onCreate(savedInstanceState:Bundle?) { super.onCreate(savedInstanceState); setContent { GeneratorApp() } }
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        window.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE)
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.auto(AndroidColor.TRANSPARENT, AndroidColor.TRANSPARENT)
+        )
+        setContent { GeneratorApp() }
+    }
 }
 private suspend fun request(path: String, token: String? = null, body: JSONObject? = null): JSONObject = withContext(Dispatchers.IO) {
     val url = "$PROJECT_URL/$path"
@@ -112,8 +124,9 @@ private fun GeneratorApp() {
     val bg = if (light) Color(0xFFF3F6F8) else Color(0xFF0B1018)
     val panel = if (light) Color.White else Color(0xFF151E2B)
     val muted = if (light) Color(0xFF647488) else Color(0xFF93A5B8)
-    val accent = Color(0xFF48D9B5)
-    val danger = Color(0xFFE47770)
+    val accent = if (light) Color(0xFF087F68) else Color(0xFF55E0C0)
+    val accentGlow = if (light) Color(0xFFB8E7DC) else Color(0xFF0F665F)
+    val danger = if (light) Color(0xFFB94747) else Color(0xFFFF8580)
     fun tr(en: String, ar: String) = if (arabic) ar else en
     fun task(block: suspend () -> Unit) {
         scope.launch {
@@ -134,14 +147,24 @@ private fun GeneratorApp() {
 
     val pages = listOf("Home", "Generate", "Codes", "Admins", "Activity", "Settings")
     val pageLabels = if (arabic) listOf("الرئيسية", "إنشاء كود", "الأكواد", "المسؤولون", "النشاط", "الإعدادات") else pages
-    val colors = if (light) lightColorScheme(primary = accent, background = bg, surface = panel, onSurface = Color(0xFF172330), onBackground = Color(0xFF172330), onSurfaceVariant = muted)
-        else darkColorScheme(primary = accent, background = bg, surface = panel, onSurface = Color(0xFFEAF0F5), onBackground = Color(0xFFEAF0F5), onSurfaceVariant = muted)
+    val colors = if (light) lightColorScheme(
+        primary = accent, onPrimary = Color.White, background = bg, surface = panel,
+        onSurface = Color(0xFF172330), onBackground = Color(0xFF172330),
+        onSurfaceVariant = muted, secondary = Color(0xFF9B7433),
+        outline = Color(0xFFB5C1CD), surfaceVariant = Color(0xFFE7EDF2)
+    ) else darkColorScheme(
+        primary = accent, onPrimary = Color(0xFF06221D), background = bg, surface = panel,
+        onSurface = Color(0xFFEAF0F5), onBackground = Color(0xFFEAF0F5),
+        onSurfaceVariant = muted, secondary = Color(0xFFD9B56F),
+        outline = Color(0xFF465568), surfaceVariant = Color(0xFF202B3A)
+    )
 
     MaterialTheme(colorScheme = colors) {
         CompositionLocalProvider(LocalLayoutDirection provides if (arabic) LayoutDirection.Rtl else LayoutDirection.Ltr) {
             Surface(Modifier.fillMaxSize(), color = bg) {
+                CyberAmbientBackground(light = light, accent = accent, glow = accentGlow)
                 if (token.isBlank()) {
-                    Column(Modifier.fillMaxSize().padding(24.dp), verticalArrangement = Arrangement.Center) {
+                    Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).padding(24.dp), verticalArrangement = Arrangement.Center) {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                             TextButton(onClick = { arabic = !arabic }) { Text(if (arabic) "EN" else "عربي") }
                             IconButton(onClick = { light = !light }) { Icon(if (light) Icons.Default.DarkMode else Icons.Default.LightMode, null) }
@@ -176,7 +199,7 @@ private fun GeneratorApp() {
                 } else {
                     Box(Modifier.fillMaxSize()) {
                         Column(Modifier.fillMaxSize()) {
-                            Row(Modifier.fillMaxWidth().padding(horizontal = 13.dp, vertical = 9.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.statusBars).padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                                 IconButton(onClick = { drawer = true }) { Icon(Icons.Default.Menu, null, tint = accent) }
                                 Column(Modifier.weight(1f)) {
                                     Text("CODE / GENERATOR", color = accent, fontSize = 10.sp, fontWeight = FontWeight.Black, letterSpacing = 1.3.sp)
@@ -186,7 +209,17 @@ private fun GeneratorApp() {
                                 IconButton(onClick = { light = !light }) { Icon(if (light) Icons.Default.DarkMode else Icons.Default.LightMode, null, tint = muted) }
                             }
                             HorizontalDivider(color = muted.copy(alpha = .2f))
-                            AnimatedContent(targetState = page, transitionSpec = { fadeIn() + scaleIn(initialScale = .99f) togetherWith fadeOut() }, label = "page-switch", modifier = Modifier.weight(1f)) { screen ->
+                            AnimatedContent(
+                                targetState = page,
+                                transitionSpec = {
+                                    (fadeIn(tween(260, easing = FastOutSlowInEasing)) +
+                                        scaleIn(initialScale = .965f, animationSpec = tween(360, easing = FastOutSlowInEasing))) togetherWith
+                                        (fadeOut(tween(150, easing = LinearOutSlowInEasing)) +
+                                            scaleOut(targetScale = .985f, animationSpec = tween(180)))
+                                },
+                                label = "page-switch",
+                                modifier = Modifier.weight(1f)
+                            ) { screen ->
                                 when (screen) {
                                     "Home" -> {
                                         val s = overview.optJSONObject("summary") ?: JSONObject()
@@ -481,10 +514,15 @@ private fun GeneratorApp() {
                             }
                             if (message.isNotBlank()) Text(message, color = danger, fontSize = 11.sp, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 5.dp))
                             if (busy) LinearProgressIndicator(Modifier.fillMaxWidth(), color = accent)
+                            Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.navigationBars))
                         }
-                        AnimatedVisibility(drawer, enter = fadeIn(), exit = fadeOut()) {
-                            Row(Modifier.fillMaxSize().background(Color.Black.copy(alpha = .45f))) {
-                                Column(Modifier.fillMaxHeight().fillMaxWidth(.82f).background(panel).padding(18.dp)) {
+                        AnimatedVisibility(
+                            drawer,
+                            enter = fadeIn(tween(180)) + slideInHorizontally(initialOffsetX = { -it / 3 }, animationSpec = tween(300, easing = FastOutSlowInEasing)),
+                            exit = fadeOut(tween(150)) + slideOutHorizontally(targetOffsetX = { -it / 4 }, animationSpec = tween(220))
+                        ) {
+                            Row(Modifier.fillMaxSize().background(Color.Black.copy(alpha = if (light) .22f else .48f))) {
+                                Column(Modifier.fillMaxHeight().fillMaxWidth(.84f).background(panel).windowInsetsPadding(WindowInsets.safeDrawing).padding(18.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text("Code", color = accent, fontSize = 24.sp, fontWeight = FontWeight.Black, modifier = Modifier.weight(1f))
                                         IconButton(onClick = { drawer = false }) { Icon(Icons.Default.Close, null) }
@@ -507,6 +545,69 @@ private fun GeneratorApp() {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CyberAmbientBackground(light: Boolean, accent: Color, glow: Color) {
+    val transition = rememberInfiniteTransition(label = "cyber-ambient")
+    val drift by transition.animateFloat(
+        initialValue = -22f, targetValue = 22f,
+        animationSpec = infiniteRepeatable(tween(11000, easing = LinearEasing), RepeatMode.Reverse),
+        label = "ambient-drift"
+    )
+    val pulse by transition.animateFloat(
+        initialValue = .035f, targetValue = .095f,
+        animationSpec = infiniteRepeatable(tween(5200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "ambient-pulse"
+    )
+    Box(Modifier.fillMaxSize()) {
+        Canvas(Modifier.fillMaxSize()) {
+            val base = if (light) AndroidColor.WHITE else AndroidColor.BLACK
+            val lineColor = accent.copy(alpha = if (light) .035f else .075f)
+            val step = 34.dp.toPx()
+            var y = 0f
+            while (y < size.height) {
+                drawLine(lineColor, androidx.compose.ui.geometry.Offset(0f, y), androidx.compose.ui.geometry.Offset(size.width, y), 0.6f)
+                y += step
+            }
+            drawCircle(
+                color = glow.copy(alpha = pulse),
+                radius = size.width * .58f,
+                center = androidx.compose.ui.geometry.Offset(size.width * .95f, size.height * .24f + drift)
+            )
+            drawCircle(
+                color = accent.copy(alpha = pulse * .56f),
+                radius = size.width * .42f,
+                center = androidx.compose.ui.geometry.Offset(size.width * .02f, size.height * .82f - drift)
+            )
+        }
+        if (!light) {
+            BinaryRain(Modifier.fillMaxSize(), accent = accent, drift = drift)
+        }
+    }
+}
+
+@Composable
+private fun BinaryRain(modifier: Modifier = Modifier, accent: Color, drift: Float) {
+    val columns = remember { List(18) { index -> index } }
+    Canvas(modifier) {
+        val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = android.graphics.Typeface.MONOSPACE
+            textSize = 10.dp.toPx()
+        }
+        columns.forEachIndexed { index, col ->
+            val x = (col + .5f) * size.width / columns.size
+            val offset = (index * 67f + drift * (if (index % 2 == 0) 1f else -1f)).mod(size.height + 130f)
+            for (row in 0..8) {
+                val y = (offset + row * 24f).mod(size.height + 50f)
+                paint.alpha = (if (row == 0) 28 else 10) + (index % 3) * 3
+                val bit = if ((row + index) % 2 == 0) "1" else "0"
+                drawContext.canvas.nativeCanvas.drawText(bit, x, y, paint.apply {
+                    color = accent.copy(alpha = 1f).toArgb()
+                })
             }
         }
     }
@@ -546,7 +647,13 @@ private fun GeneratorApp() {
     Row(Modifier.fillMaxWidth().clickable(onClick = onClick).padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null); Spacer(Modifier.width(12.dp)); Column(Modifier.weight(1f)) { Text(title, fontWeight = FontWeight.SemiBold); Text(subtitle, fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant) }; Icon(Icons.Default.ChevronRight, null) }
 }
 @Composable private fun GlassCard(content: @Composable ColumnScope.() -> Unit) {
-    Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(19.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)) {
-        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(9.dp), content = content)
+    val light = MaterialTheme.colorScheme.background.red > 0.8f
+    Card(
+        Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(26.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = if (light) .94f else .84f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = if (light) .55f else .34f))
+    ) {
+        Column(Modifier.padding(17.dp), verticalArrangement = Arrangement.spacedBy(10.dp), content = content)
     }
 }
